@@ -7,6 +7,7 @@
     
     <!-- 모바일 앱 설정 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
@@ -27,6 +28,68 @@
         .bg-neon-yellow { background-color: #ccff00; }
         .border-neon-yellow { border-color: #ccff00; }
         
+        /* 전기 스파크 애니메이션 */
+        @keyframes spark-burst {
+            0% { transform: scale(1); opacity: 1; box-shadow: 0 0 10px #ccff00; }
+            50% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 30px #fff, 0 0 50px #ccff00; }
+            100% { transform: scale(1); opacity: 1; box-shadow: 0 0 15px #ccff00; }
+        }
+
+        @keyframes jitter {
+            0% { transform: translate(0,0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(2px, -2px); }
+            60% { transform: translate(-2px, -2px); }
+            80% { transform: translate(2px, 2px); }
+            100% { transform: translate(0,0); }
+        }
+
+        .electric-hit {
+            animation: spark-burst 0.2s ease-out, jitter 0.1s linear infinite;
+            z-index: 50;
+        }
+
+        /* 전기 입자 효과 */
+        .spark-particle {
+            position: absolute;
+            background: #ccff00;
+            width: 2px;
+            height: 8px;
+            border-radius: 2px;
+            pointer-events: none;
+            z-index: 60;
+            box-shadow: 0 0 8px #ccff00;
+        }
+
+        /* 라이더 광채 효과 */
+        .rider-glow {
+            box-shadow: 0 0 15px #ccff00, inset 0 0 10px #ccff00;
+        }
+
+        /* 번쩍이는 네온 애니메이션 */
+        @keyframes neon-pulse {
+            0%, 100% { border-color: #ccff00; box-shadow: 0 0 15px #ccff00; }
+            50% { border-color: #fff; box-shadow: 0 0 30px #ccff00, 0 0 10px #fff; }
+        }
+        .active-scan {
+            animation: neon-pulse 1s infinite ease-in-out;
+            border-width: 4px !important;
+        }
+
+        /* 칸 내부 스캔라인 효과 */
+        @keyframes scan-move {
+            0% { top: -10%; }
+            100% { top: 110%; }
+        }
+        .scan-line {
+            position: absolute;
+            left: 0; width: 100%; height: 20%;
+            background: linear-gradient(to bottom, transparent, rgba(204, 255, 0, 0.4), transparent);
+            animation: scan-move 2s linear infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-8px) rotate(-2deg); }
@@ -66,9 +129,14 @@
             pointer-events: none; z-index: 100; display: none;
         }
         
-        .btn-press:active { transform: scale(0.92); transition: transform 0.1s; }
+        /* 버튼 터치 이펙트 */
+        .btn-press:active { 
+            transform: scale(0.9); 
+            background-color: #ccff00 !important;
+            color: #000 !important;
+            box-shadow: 0 0 30px #ccff00;
+        }
         
-        /* 보안 오류 안내 팝업 */
         #security-notice {
             position: fixed; inset: 0; background: rgba(0,0,0,0.9);
             z-index: 9999; display: none; flex-direction: column;
@@ -79,23 +147,19 @@
 </head>
 <body class="flex flex-col h-screen w-full select-none text-white">
 
-    <!-- 보안 안내창 (이미지 차단 시 등장) -->
+    <!-- 보안 안내창 -->
     <div id="security-notice">
         <div class="bg-gray-900 border-4 border-red-500 p-6 rounded-2xl max-w-sm">
-            <h3 class="text-xl font-black text-red-500 mb-4">🚨 시스템 보안 차단됨</h3>
-            <p class="text-sm text-gray-300 mb-6 leading-relaxed">
-                현재 주소가 <span class="text-yellow-400">content://</span>로 시작되어 안드로이드 시스템이 사진을 차단했습니다.<br><br>
-                <b>해결방법:</b><br>
-                1. '내 파일' 앱이 아닌 <b>크롬 앱</b>을 직접 켭니다.<br>
-                2. 주소창에 직접 파일 경로를 입력하거나,<br>
-                3. 아래 '체크' 버튼을 눌러 상태를 확인하세요.
+            <h3 class="text-xl font-black text-red-500 mb-4">🚨 보안 차단 감지</h3>
+            <p class="text-sm text-gray-300 mb-6">
+                인터넷 주소(quasaryeo.github.io)를 통해 접속해야만 정상적인 라이더 이펙트가 작동합니다.
             </p>
-            <button onclick="document.getElementById('security-notice').style.display='none'" class="bg-red-500 text-white font-bold py-3 px-8 rounded-full">알겠습니다</button>
+            <button onclick="document.getElementById('security-notice').style.display='none'" class="bg-red-500 text-white font-bold py-3 px-8 rounded-full">확인</button>
         </div>
     </div>
 
     <div id="kick-overlay">
-        <img src="zero-one-kick.png" onerror="handleImageError(this, 'zero-one-kick.png')" class="w-80 h-auto absolute top-1/4 right-0">
+        <img src="zero-one-kick.png" onerror="this.style.display='none'" class="w-80 h-auto absolute top-1/4 right-0">
     </div>
 
     <!-- 오디오 -->
@@ -106,15 +170,16 @@
     <audio id="snd-kick"><source src="kick.mp3" type="audio/mpeg"></audio>
 
     <div id="game-view" class="w-full h-full flex flex-col bg-black relative">
+        <!-- 상단 바 -->
         <div class="bg-gray-900 p-3 relative border-b-2 border-neon-yellow flex-shrink-0">
             <div class="flex justify-between items-center mb-2">
-                <h2 class="text-lg font-black neon-yellow tracking-tighter text-sm uppercase">⚡ Zero-One Mobile Mission</h2>
-                <button onclick="toggleAudio()" id="audio-btn" class="bg-gray-800 p-2 rounded-full border border-neon-yellow btn-press">
+                <h2 class="text-lg font-black neon-yellow tracking-tighter text-sm uppercase italic">⚡ 제로원 미션 컨트롤</h2>
+                <button onclick="toggleAudio()" id="audio-btn" class="bg-gray-800 p-2 rounded-full border border-neon-yellow btn-press shadow-[0_0_10px_rgba(204,255,0,0.5)]">
                     <span id="audio-icon">🔇</span>
                 </button>
             </div>
             
-            <div class="flex items-center gap-3 bg-white p-2 rounded-xl shadow-inner border-2 border-neon-yellow relative overflow-hidden">
+            <div class="flex items-center gap-3 bg-white p-2 rounded-xl shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] border-2 border-neon-yellow relative overflow-hidden">
                 <img src="izu.png" id="img-izu" onerror="handleImageError(this, 'izu.png')" alt="이즈" class="w-14 h-14 object-cover rounded-full border-2 border-gray-800 shadow-md z-10 bg-gray-200">
                 <div class="z-10 w-full relative">
                     <div class="text-[10px] font-bold text-gray-500">비서 이즈의 통신:</div>
@@ -123,54 +188,59 @@
             </div>
         </div>
 
+        <!-- 메인 게임 -->
         <div class="p-2 flex flex-col flex-grow justify-around gap-2 overflow-y-auto">
-            <div id="feedback-msg" class="flex items-center justify-center text-center text-[10px] font-bold h-10 text-gray-400 px-2 rounded-lg leading-tight">
-                해킹된 휴머기어를 찾아 제로원 가드를 배치하세요!
+            <div id="feedback-msg" class="flex items-center justify-center text-center text-[11px] font-bold h-10 text-gray-400 px-2 rounded-lg leading-tight uppercase tracking-widest">
+                프로그라이즈 대기 중...
             </div>
 
-            <div class="grid grid-cols-5 gap-1 w-full max-w-lg mx-auto px-1">
+            <!-- 자리수 방 -->
+            <div class="grid grid-cols-5 gap-1.5 w-full max-w-lg mx-auto px-1">
                 <script>
                     const placesList = ['만', '천', '백', '십', '일'];
-                    const colors = ['bg-red-700', 'bg-blue-700', 'bg-green-700', 'bg-yellow-600', 'bg-purple-700'];
+                    const colors = ['bg-red-800', 'bg-blue-800', 'bg-green-800', 'bg-yellow-700', 'bg-purple-800'];
                     const keys = ['key-man.png', 'key-cheon.png', 'key-baek.png', 'key-sip.png', 'key-il.png'];
                     
                     placesList.forEach((p, i) => {
                         document.write(`
-                            <button onclick="selectRoom('${p}')" id="room-${p}" class="room-btn relative flex flex-col h-28 bg-gray-800 border-2 border-gray-600 rounded-lg overflow-hidden shadow-md transition-all btn-press">
-                                <img src="${keys[i]}" onerror="handleImageError(this, '${keys[i]}')" class="absolute inset-0 w-full h-full object-contain opacity-30 pointer-events-none mix-blend-screen">
-                                <div class="${colors[i]} text-white text-center py-1 text-[9px] font-black w-full relative z-10">${p}</div>
-                                <div class="flex-grow flex items-center justify-center text-3xl font-black text-white relative z-10 w-full" id="val-${p}"></div>
+                            <button onclick="selectRoom('${p}', this)" id="room-${p}" class="room-btn relative flex flex-col h-32 bg-gray-900 border-2 border-gray-700 rounded-lg overflow-hidden shadow-lg transition-all btn-press">
+                                <div id="scan-${p}"></div>
+                                <img src="${keys[i]}" onerror="handleImageError(this, '${keys[i]}')" class="absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none mix-blend-screen">
+                                <div class="${colors[i]} text-white text-center py-1 text-[10px] font-black w-full relative z-10 italic border-b border-black/50">${p}</div>
+                                <div class="flex-grow flex items-center justify-center text-4xl font-black text-white relative z-10 w-full drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" id="val-${p}"></div>
                             </button>
                         `);
                     });
                 </script>
             </div>
 
-            <div id="keypad" class="hidden flex-col items-center w-full max-w-xs mx-auto bg-gray-900 p-3 rounded-2xl shadow-inner border-2 border-neon-yellow my-1">
-                <div class="grid grid-cols-3 gap-2 w-full">
+            <!-- 넘패드 -->
+            <div id="keypad" class="hidden flex-col items-center w-full max-w-xs mx-auto bg-gray-900/80 p-3 rounded-2xl shadow-[0_0_20px_rgba(204,255,0,0.2)] border-2 border-neon-yellow/50 my-1 backdrop-blur-sm">
+                <div class="grid grid-cols-3 gap-3 w-full">
                     <script>
                         for(let i=1; i<=9; i++){
-                            document.write(`<button onclick="inputNumber('${i}')" class="h-12 bg-white border-2 border-black rounded-xl text-xl font-black text-black btn-press">${i}</button>`);
+                            document.write(`<button onclick="inputNumber('${i}', this)" class="h-14 bg-black border-2 border-gray-600 rounded-xl text-2xl font-black text-white btn-press hover:border-neon-yellow transition-colors">${i}</button>`);
                         }
                     </script>
-                    <button onclick="inputNumber('0')" class="col-start-2 h-12 border-4 border-black rounded-full bg-neon-yellow shadow-[0_0_10px_rgba(204,255,0,0.8)] relative overflow-hidden flex items-center justify-center btn-press">
-                        <img src="zero-one-logo.png" onerror="handleImageError(this, 'zero-one-logo.png')" class="absolute h-full w-full object-cover">
+                    <button onclick="inputNumber('0', this)" class="col-start-2 h-14 border-4 border-black rounded-full bg-neon-yellow shadow-[0_0_15px_rgba(204,255,0,0.6)] relative overflow-hidden flex items-center justify-center btn-press">
+                        <img src="zero-one-logo.png" onerror="handleImageError(this, 'zero-one-logo.png')" class="absolute h-[85%] w-[85%] object-contain">
                     </button>
                 </div>
             </div>
 
             <div class="w-full max-w-xs mx-auto">
-                <button onclick="checkAnswer()" id="btn-submit" class="bg-neon-yellow text-black font-black text-lg py-3 rounded-xl shadow-lg w-full btn-press border-2 border-black">
-                    ✅ 합체 확인!
+                <button onclick="checkAnswer(this)" id="btn-submit" class="bg-neon-yellow text-black font-black text-xl py-4 rounded-xl shadow-[0_0_20px_rgba(204,255,0,0.5)] w-full btn-press border-2 border-black uppercase italic tracking-tighter">
+                    승인 및 프로그라이즈!
                 </button>
             </div>
             
-            <div id="result-box" class="hidden flex-col items-center justify-center gap-1 bg-gray-900 p-3 rounded-xl border-4 border-neon-yellow relative overflow-hidden h-36">
-                <img src="zero-one.png" onerror="handleImageError(this, 'zero-one.png')" class="absolute -right-2 -bottom-2 h-32 object-contain opacity-40 z-0 pointer-events-none">
+            <!-- 성공 화면 -->
+            <div id="result-box" class="hidden flex-col items-center justify-center gap-1 bg-gray-900 p-4 rounded-xl border-4 border-neon-yellow relative overflow-hidden h-40 shadow-[0_0_40px_rgba(204,255,0,0.4)]">
+                <img src="zero-one.png" onerror="handleImageError(this, 'zero-one.png')" class="absolute -right-2 -bottom-2 h-36 object-contain opacity-50 z-0 pointer-events-none">
                 <div class="z-10 text-center w-full">
-                    <div class="text-sm font-bold neon-yellow italic">"거기엔 나밖에 없지!"</div>
-                    <div id="final-number" class="text-3xl font-black tracking-widest text-white my-1"></div>
-                    <button onclick="startNewMission()" class="bg-neon-yellow text-black text-[10px] font-bold py-2 px-4 rounded-full shadow-md btn-press">다음 미션 출동! 🦗</button>
+                    <div class="text-lg font-black neon-yellow italic drop-shadow-md uppercase tracking-widest">라이징 임팩트!</div>
+                    <div id="final-number" class="text-5xl font-black tracking-[0.2em] text-white my-2 drop-shadow-[0_0_15px_rgba(204,255,0,1)]"></div>
+                    <button onclick="startNewMission(this)" class="bg-neon-yellow text-black text-xs font-black py-2.5 px-8 rounded-full shadow-md btn-press uppercase">다음 미션 출동!</button>
                 </div>
             </div>
         </div>
@@ -184,13 +254,46 @@
         const places = ['만', '천', '백', '십', '일'];
         const bgm = document.getElementById('bgm');
         
-        // 이미지 로드 오류 감지
-        function handleImageError(img, filename) {
-            // content:// 주소로 인해 차단된 경우 안내창 표시
-            if (window.location.protocol === 'content:' || window.location.href.includes('content:')) {
-                document.getElementById('security-notice').style.display = 'flex';
+        // 전기 스파크 생성 함수
+        function triggerElectricity(element) {
+            if (!element) return;
+            
+            // 버튼에 전기 클래스 추가
+            element.classList.add('electric-hit');
+            setTimeout(() => element.classList.remove('electric-hit'), 200);
+
+            // 스파크 파티클 생성
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'spark-particle';
+                
+                const rect = element.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                particle.style.left = centerX + 'px';
+                particle.style.top = centerY + 'px';
+                
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 20 + Math.random() * 40;
+                const tx = Math.cos(angle) * dist;
+                const ty = Math.sin(angle) * dist;
+                const rot = angle * (180 / Math.PI);
+
+                document.body.appendChild(particle);
+
+                particle.animate([
+                    { transform: `translate(-50%, -50%) rotate(${rot}deg) translate(0, 0) scaleY(1)`, opacity: 1 },
+                    { transform: `translate(-50%, -50%) rotate(${rot}deg) translate(${tx}px, ${ty}px) scaleY(0.2)`, opacity: 0 }
+                ], {
+                    duration: 300 + Math.random() * 200,
+                    easing: 'ease-out'
+                }).onfinish = () => particle.remove();
             }
-            img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23222'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23ccff00' font-size='8'%3E" + filename + "%3C/text%3E%3C/svg%3E";
+        }
+
+        function handleImageError(img, filename) {
+            img.src = `https://placehold.co/200x200/222/ccff00?text=${filename}`;
         }
 
         function playSfx(audioObj) {
@@ -235,7 +338,8 @@
             }
         }
 
-        function startNewMission() {
+        function startNewMission(el) {
+            if (el) triggerElectricity(el);
             playSfx(document.getElementById('snd-click'));
             currentAnswers = { '만': '', '천': '', '백': '', '십': '', '일': '' };
             selectedRoom = null;
@@ -243,7 +347,8 @@
             document.getElementById('result-box').classList.add('hidden');
             document.getElementById('btn-submit').classList.remove('hidden');
             
-            document.getElementById('feedback-msg').innerHTML = `해킹된 휴머기어를 찾아 제로원 가드를 배치하세요!`;
+            document.getElementById('feedback-msg').innerHTML = `해킹된 휴머기어 검색 중...`;
+            document.getElementById('feedback-msg').classList.remove('neon-yellow');
 
             currentMission = {};
             currentMission['만'] = Math.floor(Math.random() * 9) + 1;
@@ -255,8 +360,9 @@
 
             places.forEach(p => {
                 const btn = document.getElementById('room-' + p);
-                btn.classList.remove('border-neon-yellow', 'blink-warning');
-                btn.classList.add('border-gray-600');
+                btn.classList.remove('active-scan', 'blink-warning');
+                btn.classList.add('border-gray-700');
+                document.getElementById('scan-' + p).classList.remove('scan-line');
                 setGuideHumagear(p, currentMission[p] === 0);
             });
 
@@ -264,33 +370,43 @@
             const txt = document.getElementById('mission-text');
             if (mode === 'PLACE') {
                 let pArr = [];
-                places.forEach(p => { if (currentMission[p] !== 0) pArr.push(`${p}:${currentMission[p]}`); });
-                txt.innerHTML = `여주완 사장님! <strong>${pArr.join(', ')}</strong> 데이터를 입력하세요!`;
+                places.forEach(p => { if (currentMission[p] !== 0) pArr.push(`${p}: ${currentMission[p]}`); });
+                txt.innerHTML = `여주완 사장님! <strong>${pArr.join(', ')}</strong> 데이터를 승인해 주세요!`;
             } else {
-                txt.innerHTML = `여주완 사장님! <strong>"${numberToKorean(currentMission)}"</strong>을 완성하세요!`;
+                txt.innerHTML = `여주완 사장님! <strong>"${numberToKorean(currentMission)}"</strong> 데이터를 완성하세요!`;
             }
         }
 
-        function selectRoom(place) {
+        function selectRoom(place, el) {
+            triggerElectricity(el);
             playSfx(document.getElementById('snd-click'));
             selectedRoom = place;
             document.getElementById('keypad').classList.replace('hidden', 'flex');
+            
             places.forEach(p => {
-                document.getElementById('room-' + p).classList.remove('border-neon-yellow', 'blink-warning');
-                document.getElementById('room-' + p).classList.add('border-gray-600');
+                const btn = document.getElementById('room-' + p);
+                btn.classList.remove('active-scan', 'blink-warning');
+                btn.classList.replace('border-neon-yellow', 'border-gray-700');
+                document.getElementById('scan-' + p).classList.remove('scan-line');
             });
-            document.getElementById('room-' + place).classList.replace('border-gray-600', 'border-neon-yellow');
+            
+            const selectedBtn = document.getElementById('room-' + place);
+            selectedBtn.classList.add('active-scan');
+            document.getElementById('scan-' + place).classList.add('scan-line');
+            
+            document.getElementById('feedback-msg').innerHTML = `<span class="neon-yellow font-black">[${place}] 시스템에 접속 중...</span>`;
         }
 
-        function inputNumber(num) {
+        function inputNumber(num, el) {
+            triggerElectricity(el);
             playSfx(document.getElementById('snd-click'));
             if (!selectedRoom) return;
             currentAnswers[selectedRoom] = num;
-            const el = document.getElementById('val-' + selectedRoom);
+            const displayEl = document.getElementById('val-' + selectedRoom);
             if (num === '0') {
-                el.innerHTML = `<div class="status-container"><img src="zero-one-holding-0.png" onerror="handleImageError(this, 'zero-one-holding-0.png')" class="status-img"></div>`;
+                displayEl.innerHTML = `<div class="status-container"><img src="zero-one-holding-0.png" onerror="handleImageError(this, 'zero-one-holding-0.png')" class="status-img"></div>`;
             } else {
-                el.innerHTML = `<span class="text-white text-4xl font-black">${num}</span>`;
+                displayEl.innerHTML = `<span class="text-white text-5xl font-black drop-shadow-[0_0_10px_rgba(204,255,0,0.8)]">${num}</span>`;
             }
         }
 
@@ -298,16 +414,17 @@
             playSfx(document.getElementById('snd-kick'));
             const overlay = document.getElementById('kick-overlay');
             overlay.classList.add('animate-kick');
-            
             overlay.onanimationend = () => {
                 overlay.classList.remove('animate-kick');
                 callback();
             };
         }
 
-        function checkAnswer() {
+        function checkAnswer(el) {
+            triggerElectricity(el);
             let empty = [];
             places.forEach(p => { if (currentAnswers[p] === '') empty.push(p); });
+            
             if (empty.length > 0) {
                 playSfx(document.getElementById('snd-error'));
                 empty.forEach(p => {
@@ -316,6 +433,7 @@
                 });
                 document.getElementById('game-view').classList.add('shake');
                 setTimeout(() => document.getElementById('game-view').classList.remove('shake'), 500);
+                document.getElementById('feedback-msg').innerHTML = `<span class="text-red-500 font-black">심각한 오류: 데이터가 부족합니다!</span>`;
                 return;
             }
 
@@ -329,19 +447,17 @@
                     document.getElementById('btn-submit').classList.add('hidden');
                     document.getElementById('result-box').classList.replace('hidden', 'flex');
                     document.getElementById('final-number').innerText = places.map(p => currentAnswers[p]).join('');
+                    document.getElementById('feedback-msg').innerHTML = `<span class="neon-yellow font-black">미션 완료: 데이터 프로그라이즈!</span>`;
                 });
             } else {
                 playSfx(document.getElementById('snd-error'));
+                document.getElementById('feedback-msg').innerHTML = `<span class="text-orange-500 font-black">오류: 데이터 불일치</span>`;
+                document.getElementById('game-view').classList.add('shake');
+                setTimeout(() => document.getElementById('game-view').classList.remove('shake'), 500);
             }
         }
 
-        window.onload = () => {
-            // 보안 정책 체크 및 미션 시작
-            if (window.location.protocol === 'content:' || window.location.href.includes('content:')) {
-                document.getElementById('security-notice').style.display = 'flex';
-            }
-            startNewMission();
-        };
+        window.onload = () => startNewMission();
     </script>
 </body>
 </html>
