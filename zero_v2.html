@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>제로원! 스마트폰 미션</title>
+    
+    <!-- 모바일 앱 설정 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            background-color: #000; 
+            touch-action: manipulation; 
+            overscroll-behavior-y: none;
+            margin: 0; padding: 0;
+            height: 100vh; width: 100vw;
+            overflow: hidden;
+        }
+        
+        .neon-yellow { color: #ccff00; }
+        .bg-neon-yellow { background-color: #ccff00; }
+        .border-neon-yellow { border-color: #ccff00; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px) rotate(-2deg); }
+            75% { transform: translateX(8px) rotate(2deg); }
+        }
+        .shake { animation: shake 0.4s ease-in-out 2; }
+        
+        @keyframes blink {
+            0%, 100% { background-color: #333; }
+            50% { background-color: #ff0033; }
+        }
+        .blink-warning { animation: blink 0.8s ease-in-out infinite; border-color: #ff0033 !important;}
+
+        @keyframes rising-kick {
+            0% { transform: translate(120vw, -20vh) rotate(-15deg); opacity: 1; }
+            30% { transform: translate(20vw, 5vh) rotate(-10deg); opacity: 1; }
+            100% { transform: translate(-150vw, 40vh) rotate(-5deg); opacity: 0; }
+        }
+        .animate-kick {
+            animation: rising-kick 0.8s cubic-bezier(0.15, 0, 0.15, 1) forwards;
+            display: block !important;
+        }
+
+        .status-container {
+            position: absolute;
+            inset: 0;
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            background-color: #000;
+        }
+        .status-img { width: 100%; height: 100%; object-fit: cover; }
+        .waiting-img { opacity: 0.8; object-fit: contain; padding: 5%; }
+        .hacked-guide-img { filter: grayscale(0.5) sepia(0.5) hue-rotate(-50deg); opacity: 0.9; }
+
+        #kick-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 100; display: none;
+        }
+        
+        .btn-press:active { transform: scale(0.92); transition: transform 0.1s; }
+        
+        /* 보안 오류 안내 팝업 */
+        #security-notice {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            z-index: 9999; display: none; flex-direction: column;
+            align-items: center; justify-content: center; padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-full select-none text-white">
+
+    <!-- 보안 안내창 (이미지 차단 시 등장) -->
+    <div id="security-notice">
+        <div class="bg-gray-900 border-4 border-red-500 p-6 rounded-2xl max-w-sm">
+            <h3 class="text-xl font-black text-red-500 mb-4">🚨 시스템 보안 차단됨</h3>
+            <p class="text-sm text-gray-300 mb-6 leading-relaxed">
+                현재 주소가 <span class="text-yellow-400">content://</span>로 시작되어 안드로이드 시스템이 사진을 차단했습니다.<br><br>
+                <b>해결방법:</b><br>
+                1. '내 파일' 앱이 아닌 <b>크롬 앱</b>을 직접 켭니다.<br>
+                2. 주소창에 직접 파일 경로를 입력하거나,<br>
+                3. 아래 '체크' 버튼을 눌러 상태를 확인하세요.
+            </p>
+            <button onclick="document.getElementById('security-notice').style.display='none'" class="bg-red-500 text-white font-bold py-3 px-8 rounded-full">알겠습니다</button>
+        </div>
+    </div>
+
+    <div id="kick-overlay">
+        <img src="zero-one-kick.png" onerror="handleImageError(this, 'zero-one-kick.png')" class="w-80 h-auto absolute top-1/4 right-0">
+    </div>
+
+    <!-- 오디오 -->
+    <audio id="bgm" loop><source src="bgm.mp3" type="audio/mpeg"></audio>
+    <audio id="snd-click"><source src="click.mp3" type="audio/mpeg"></audio>
+    <audio id="snd-correct"><source src="correct.mp3" type="audio/mpeg"></audio>
+    <audio id="snd-error"><source src="error.mp3" type="audio/mpeg"></audio>
+    <audio id="snd-kick"><source src="kick.mp3" type="audio/mpeg"></audio>
+
+    <div id="game-view" class="w-full h-full flex flex-col bg-black relative">
+        <div class="bg-gray-900 p-3 relative border-b-2 border-neon-yellow flex-shrink-0">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-lg font-black neon-yellow tracking-tighter text-sm uppercase">⚡ Zero-One Mobile Mission</h2>
+                <button onclick="toggleAudio()" id="audio-btn" class="bg-gray-800 p-2 rounded-full border border-neon-yellow btn-press">
+                    <span id="audio-icon">🔇</span>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-3 bg-white p-2 rounded-xl shadow-inner border-2 border-neon-yellow relative overflow-hidden">
+                <img src="izu.png" id="img-izu" onerror="handleImageError(this, 'izu.png')" alt="이즈" class="w-14 h-14 object-cover rounded-full border-2 border-gray-800 shadow-md z-10 bg-gray-200">
+                <div class="z-10 w-full relative">
+                    <div class="text-[10px] font-bold text-gray-500">비서 이즈의 통신:</div>
+                    <div id="mission-text" class="text-xs sm:text-sm font-black leading-tight text-black break-keep"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-2 flex flex-col flex-grow justify-around gap-2 overflow-y-auto">
+            <div id="feedback-msg" class="flex items-center justify-center text-center text-[10px] font-bold h-10 text-gray-400 px-2 rounded-lg leading-tight">
+                해킹된 휴머기어를 찾아 제로원 가드를 배치하세요!
+            </div>
+
+            <div class="grid grid-cols-5 gap-1 w-full max-w-lg mx-auto px-1">
+                <script>
+                    const placesList = ['만', '천', '백', '십', '일'];
+                    const colors = ['bg-red-700', 'bg-blue-700', 'bg-green-700', 'bg-yellow-600', 'bg-purple-700'];
+                    const keys = ['key-man.png', 'key-cheon.png', 'key-baek.png', 'key-sip.png', 'key-il.png'];
+                    
+                    placesList.forEach((p, i) => {
+                        document.write(`
+                            <button onclick="selectRoom('${p}')" id="room-${p}" class="room-btn relative flex flex-col h-28 bg-gray-800 border-2 border-gray-600 rounded-lg overflow-hidden shadow-md transition-all btn-press">
+                                <img src="${keys[i]}" onerror="handleImageError(this, '${keys[i]}')" class="absolute inset-0 w-full h-full object-contain opacity-30 pointer-events-none mix-blend-screen">
+                                <div class="${colors[i]} text-white text-center py-1 text-[9px] font-black w-full relative z-10">${p}</div>
+                                <div class="flex-grow flex items-center justify-center text-3xl font-black text-white relative z-10 w-full" id="val-${p}"></div>
+                            </button>
+                        `);
+                    });
+                </script>
+            </div>
+
+            <div id="keypad" class="hidden flex-col items-center w-full max-w-xs mx-auto bg-gray-900 p-3 rounded-2xl shadow-inner border-2 border-neon-yellow my-1">
+                <div class="grid grid-cols-3 gap-2 w-full">
+                    <script>
+                        for(let i=1; i<=9; i++){
+                            document.write(`<button onclick="inputNumber('${i}')" class="h-12 bg-white border-2 border-black rounded-xl text-xl font-black text-black btn-press">${i}</button>`);
+                        }
+                    </script>
+                    <button onclick="inputNumber('0')" class="col-start-2 h-12 border-4 border-black rounded-full bg-neon-yellow shadow-[0_0_10px_rgba(204,255,0,0.8)] relative overflow-hidden flex items-center justify-center btn-press">
+                        <img src="zero-one-logo.png" onerror="handleImageError(this, 'zero-one-logo.png')" class="absolute h-full w-full object-cover">
+                    </button>
+                </div>
+            </div>
+
+            <div class="w-full max-w-xs mx-auto">
+                <button onclick="checkAnswer()" id="btn-submit" class="bg-neon-yellow text-black font-black text-lg py-3 rounded-xl shadow-lg w-full btn-press border-2 border-black">
+                    ✅ 합체 확인!
+                </button>
+            </div>
+            
+            <div id="result-box" class="hidden flex-col items-center justify-center gap-1 bg-gray-900 p-3 rounded-xl border-4 border-neon-yellow relative overflow-hidden h-36">
+                <img src="zero-one.png" onerror="handleImageError(this, 'zero-one.png')" class="absolute -right-2 -bottom-2 h-32 object-contain opacity-40 z-0 pointer-events-none">
+                <div class="z-10 text-center w-full">
+                    <div class="text-sm font-bold neon-yellow italic">"거기엔 나밖에 없지!"</div>
+                    <div id="final-number" class="text-3xl font-black tracking-widest text-white my-1"></div>
+                    <button onclick="startNewMission()" class="bg-neon-yellow text-black text-[10px] font-bold py-2 px-4 rounded-full shadow-md btn-press">다음 미션 출동! 🦗</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMission = {};
+        let currentAnswers = { '만': '', '천': '', '백': '', '십': '', '일': '' };
+        let selectedRoom = null;
+        let audioEnabled = false;
+        const places = ['만', '천', '백', '십', '일'];
+        const bgm = document.getElementById('bgm');
+        
+        // 이미지 로드 오류 감지
+        function handleImageError(img, filename) {
+            // content:// 주소로 인해 차단된 경우 안내창 표시
+            if (window.location.protocol === 'content:' || window.location.href.includes('content:')) {
+                document.getElementById('security-notice').style.display = 'flex';
+            }
+            img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23222'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23ccff00' font-size='8'%3E" + filename + "%3C/text%3E%3C/svg%3E";
+        }
+
+        function playSfx(audioObj) {
+            if (!audioEnabled) return;
+            audioObj.currentTime = 0;
+            audioObj.play().catch(e => console.warn(e));
+        }
+
+        function toggleAudio() {
+            const icon = document.getElementById('audio-icon');
+            if (!audioEnabled) {
+                bgm.play().then(() => {
+                    icon.innerText = "🔊";
+                    audioEnabled = true;
+                }).catch(e => console.error(e));
+            } else {
+                bgm.pause();
+                icon.innerText = "🔇";
+                audioEnabled = false;
+            }
+        }
+
+        function numberToKorean(valObj) {
+            const units = ['', '십', '백', '천', '만'];
+            const nums = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+            let result = '';
+            const order = ['일', '십', '백', '천', '만'];
+            for (let i = 4; i >= 0; i--) {
+                const digit = valObj[order[i]];
+                if (digit > 0) result += nums[digit] + units[i] + ' ';
+            }
+            return result.trim();
+        }
+
+        function setGuideHumagear(place, isHacked) {
+            const el = document.getElementById('val-' + place);
+            if (isHacked) {
+                el.innerHTML = `<div class="status-container"><img src="hacked-humagear.png" onerror="handleImageError(this, 'hacked-humagear.png')" class="status-img waiting-img hacked-guide-img"></div>`;
+            } else {
+                const randIdx = Math.floor(Math.random() * 15) + 1;
+                el.innerHTML = `<div class="status-container"><img src="h${randIdx}.webp" onerror="handleImageError(this, 'h${randIdx}.webp')" class="status-img waiting-img"></div>`;
+            }
+        }
+
+        function startNewMission() {
+            playSfx(document.getElementById('snd-click'));
+            currentAnswers = { '만': '', '천': '', '백': '', '십': '', '일': '' };
+            selectedRoom = null;
+            document.getElementById('keypad').classList.add('hidden');
+            document.getElementById('result-box').classList.add('hidden');
+            document.getElementById('btn-submit').classList.remove('hidden');
+            
+            document.getElementById('feedback-msg').innerHTML = `해킹된 휴머기어를 찾아 제로원 가드를 배치하세요!`;
+
+            currentMission = {};
+            currentMission['만'] = Math.floor(Math.random() * 9) + 1;
+            let others = ['천', '백', '십', '일'];
+            let rem = Math.floor(Math.random() * 2) + 1; 
+            others.sort(() => 0.5 - Math.random());
+            others.slice(rem).forEach(p => currentMission[p] = Math.floor(Math.random() * 9) + 1);
+            others.slice(0, rem).forEach(p => currentMission[p] = 0);
+
+            places.forEach(p => {
+                const btn = document.getElementById('room-' + p);
+                btn.classList.remove('border-neon-yellow', 'blink-warning');
+                btn.classList.add('border-gray-600');
+                setGuideHumagear(p, currentMission[p] === 0);
+            });
+
+            const mode = Math.random() > 0.5 ? 'PLACE' : 'READ';
+            const txt = document.getElementById('mission-text');
+            if (mode === 'PLACE') {
+                let pArr = [];
+                places.forEach(p => { if (currentMission[p] !== 0) pArr.push(`${p}:${currentMission[p]}`); });
+                txt.innerHTML = `여주완 사장님! <strong>${pArr.join(', ')}</strong> 데이터를 입력하세요!`;
+            } else {
+                txt.innerHTML = `여주완 사장님! <strong>"${numberToKorean(currentMission)}"</strong>을 완성하세요!`;
+            }
+        }
+
+        function selectRoom(place) {
+            playSfx(document.getElementById('snd-click'));
+            selectedRoom = place;
+            document.getElementById('keypad').classList.replace('hidden', 'flex');
+            places.forEach(p => {
+                document.getElementById('room-' + p).classList.remove('border-neon-yellow', 'blink-warning');
+                document.getElementById('room-' + p).classList.add('border-gray-600');
+            });
+            document.getElementById('room-' + place).classList.replace('border-gray-600', 'border-neon-yellow');
+        }
+
+        function inputNumber(num) {
+            playSfx(document.getElementById('snd-click'));
+            if (!selectedRoom) return;
+            currentAnswers[selectedRoom] = num;
+            const el = document.getElementById('val-' + selectedRoom);
+            if (num === '0') {
+                el.innerHTML = `<div class="status-container"><img src="zero-one-holding-0.png" onerror="handleImageError(this, 'zero-one-holding-0.png')" class="status-img"></div>`;
+            } else {
+                el.innerHTML = `<span class="text-white text-4xl font-black">${num}</span>`;
+            }
+        }
+
+        function triggerKickAnimation(callback) {
+            playSfx(document.getElementById('snd-kick'));
+            const overlay = document.getElementById('kick-overlay');
+            overlay.classList.add('animate-kick');
+            
+            overlay.onanimationend = () => {
+                overlay.classList.remove('animate-kick');
+                callback();
+            };
+        }
+
+        function checkAnswer() {
+            let empty = [];
+            places.forEach(p => { if (currentAnswers[p] === '') empty.push(p); });
+            if (empty.length > 0) {
+                playSfx(document.getElementById('snd-error'));
+                empty.forEach(p => {
+                    document.getElementById('room-' + p).classList.add('blink-warning');
+                    document.getElementById('val-' + p).innerHTML = `<div class="status-container"><img src="hacked-humagear.png" class="status-img"></div>`;
+                });
+                document.getElementById('game-view').classList.add('shake');
+                setTimeout(() => document.getElementById('game-view').classList.remove('shake'), 500);
+                return;
+            }
+
+            let correct = true;
+            places.forEach(p => { if (parseInt(currentAnswers[p]) !== currentMission[p]) correct = false; });
+
+            if (correct) {
+                playSfx(document.getElementById('snd-correct'));
+                triggerKickAnimation(() => {
+                    document.getElementById('keypad').classList.add('hidden');
+                    document.getElementById('btn-submit').classList.add('hidden');
+                    document.getElementById('result-box').classList.replace('hidden', 'flex');
+                    document.getElementById('final-number').innerText = places.map(p => currentAnswers[p]).join('');
+                });
+            } else {
+                playSfx(document.getElementById('snd-error'));
+            }
+        }
+
+        window.onload = () => {
+            // 보안 정책 체크 및 미션 시작
+            if (window.location.protocol === 'content:' || window.location.href.includes('content:')) {
+                document.getElementById('security-notice').style.display = 'flex';
+            }
+            startNewMission();
+        };
+    </script>
+</body>
+</html>
